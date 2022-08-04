@@ -206,7 +206,8 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.oneOf;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 import static org.opensearch.cluster.routing.TestShardRouting.newShardRouting;
 import static org.opensearch.common.lucene.Lucene.cleanLuceneIndex;
 import static org.opensearch.common.xcontent.ToXContent.EMPTY_PARAMS;
@@ -3508,6 +3509,27 @@ public class IndexShardTests extends IndexShardTestCase {
         IndexShard shard = newStartedShard(p -> newShard(mock), true);
         List<ReferenceManager.RefreshListener> refreshListeners = shard.getEngine().config().getInternalRefreshListener();
         assertTrue(refreshListeners.stream().anyMatch(e -> e instanceof CheckpointRefreshListener));
+        closeShards(shard);
+    }
+
+    public void testCase1() throws IOException {
+        final SegmentReplicationCheckpointPublisher mock = mock(SegmentReplicationCheckpointPublisher.class);
+        IndexShard shard = newStartedShard(p -> newShard(mock), true);
+        CheckpointRefreshListener refreshListener = new CheckpointRefreshListener(shard,mock);
+        refreshListener.afterRefresh(true);
+        verify(mock, times(1)).publish(any());
+        closeShards(shard);
+    }
+
+    public void testCase2() throws IOException {
+        final SegmentReplicationCheckpointPublisher mock = mock(SegmentReplicationCheckpointPublisher.class);
+        IndexShard shard = newStartedShard(p -> newShard(mock), true);
+        CheckpointRefreshListener refreshListener = new CheckpointRefreshListener(shard,mock);
+        String id = shard.routingEntry().allocationId().getId();
+        shard.getReplicationTracker().startRelocationHandoff(id);
+        shard.getReplicationTracker().completeRelocationHandoff();
+        refreshListener.afterRefresh(true);
+        verify(mock,times(0)).publish(any());
         closeShards(shard);
     }
 
