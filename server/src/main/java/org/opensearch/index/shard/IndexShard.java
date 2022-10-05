@@ -1434,15 +1434,19 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      */
     public final boolean shouldProcessCheckpoint(ReplicationCheckpoint requestCheckpoint) {
         if (state().equals(IndexShardState.STARTED) == false) {
-            logger.trace(() -> new ParameterizedMessage("Ignoring new replication checkpoint - shard is not started {}", state()));
+            logger.info(() -> new ParameterizedMessage("Ignoring new replication checkpoint - shard is not started {}", state()));
             return false;
         }
         if (getReplicationTracker().isPrimaryMode()) {
-            logger.warn("Ignoring new replication checkpoint - shard is in primaryMode and cannot receive any checkpoints.");
+            logger.info("Ignoring new replication checkpoint - shard is in primaryMode and cannot receive any checkpoints.");
             return false;
         }
         if (this.routingEntry().primary()) {
-            logger.warn("Ignoring new replication checkpoint - primary shard cannot receive any checkpoints.");
+            logger.info("Ignoring new replication checkpoint - primary shard cannot receive any checkpoints.");
+            return false;
+        }
+        if(getReplicationEngine().isPresent() == false){
+            logger.info("Not a NRT Engine");
             return false;
         }
         ReplicationCheckpoint localCheckpoint = getLatestReplicationCheckpoint();

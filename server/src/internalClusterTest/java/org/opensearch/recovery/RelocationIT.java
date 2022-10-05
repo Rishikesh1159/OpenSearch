@@ -38,6 +38,10 @@ import org.apache.lucene.tests.util.English;
 import org.opensearch.action.ActionFuture;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.reroute.ClusterRerouteResponse;
+import org.opensearch.action.admin.indices.segments.IndexShardSegments;
+import org.opensearch.action.admin.indices.segments.IndicesSegmentResponse;
+import org.opensearch.action.admin.indices.segments.IndicesSegmentsRequest;
+import org.opensearch.action.admin.indices.segments.ShardSegments;
 import org.opensearch.action.admin.indices.stats.ShardStats;
 import org.opensearch.action.index.IndexRequestBuilder;
 import org.opensearch.action.index.IndexResponse;
@@ -47,6 +51,8 @@ import org.opensearch.client.Client;
 import org.opensearch.cluster.ClusterState;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.cluster.node.DiscoveryNode;
+import org.opensearch.cluster.routing.IndexShardRoutingTable;
+import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.cluster.routing.ShardRoutingState;
 import org.opensearch.cluster.routing.allocation.command.MoveAllocationCommand;
 import org.opensearch.cluster.routing.allocation.decider.EnableAllocationDecider;
@@ -57,8 +63,11 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.env.NodeEnvironment;
+import org.opensearch.index.Index;
+import org.opensearch.index.IndexModule;
 import org.opensearch.index.IndexService;
 import org.opensearch.index.IndexSettings;
+import org.opensearch.index.engine.Segment;
 import org.opensearch.index.mapper.MapperService;
 import org.opensearch.index.seqno.ReplicationTracker;
 import org.opensearch.index.seqno.RetentionLease;
@@ -66,8 +75,10 @@ import org.opensearch.index.shard.IndexEventListener;
 import org.opensearch.index.shard.IndexShard;
 import org.opensearch.index.shard.IndexShardState;
 import org.opensearch.index.shard.ShardId;
+import org.opensearch.indices.IndicesService;
 import org.opensearch.indices.recovery.PeerRecoveryTargetService;
 import org.opensearch.indices.recovery.FileChunkRequest;
+import org.opensearch.indices.replication.common.ReplicationType;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.SearchHits;
@@ -90,16 +101,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -303,10 +310,19 @@ public class RelocationIT extends OpenSearchIntegTestCase {
         }
     }
 
+    @Override
+    protected boolean addMockInternalEngine() {
+        return false;
+    }
+
     public void testRelocationWhileRefreshing() throws Exception {
-        int numberOfRelocations = scaledRandomIntBetween(1, rarely() ? 10 : 4);
-        int numberOfReplicas = randomBoolean() ? 0 : 1;
-        int numberOfNodes = numberOfReplicas == 0 ? 2 : 3;
+//        int numberOfRelocations = scaledRandomIntBetween(1, rarely() ? 10 : 4);
+//        int numberOfReplicas = randomBoolean() ? 0 : 1;
+//        int numberOfNodes = numberOfReplicas == 0 ? 2 : 3;
+
+        int numberOfRelocations = 10;
+        int numberOfReplicas = 1;
+        int numberOfNodes = 3;
 
         logger.info(
             "testRelocationWhileIndexingRandom(numRelocations={}, numberOfReplicas={}, numberOfNodes={})",
@@ -323,8 +339,10 @@ public class RelocationIT extends OpenSearchIntegTestCase {
         prepareCreate(
             "test",
             Settings.builder()
-                .put("index.number_of_shards", 1)
-                .put("index.number_of_replicas", numberOfReplicas)
+                .put(IndexMetadata.SETTING_NUMBER_OF_SHARDS, 1)
+                .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, numberOfReplicas)
+                .put(IndexModule.INDEX_QUERY_CACHE_ENABLED_SETTING.getKey(), false)
+                .put(IndexMetadata.SETTING_REPLICATION_TYPE, ReplicationType.SEGMENT)
                 // we want to control refreshes
                 .put("index.refresh_interval", -1)
         ).get();
@@ -354,7 +372,7 @@ public class RelocationIT extends OpenSearchIntegTestCase {
                 IndexShardState currentState,
                 @Nullable String reason
             ) {
-                if (currentState == IndexShardState.POST_RECOVERY) {
+                if (currentState == IndexShardState.STARTED) {
                     postRecoveryShards.release();
                 }
             }
@@ -368,6 +386,12 @@ public class RelocationIT extends OpenSearchIntegTestCase {
         logger.info("--> starting relocations...");
         int nodeShiftBased = numberOfReplicas; // if we have replicas shift those
         for (int i = 0; i < numberOfRelocations; i++) {
+            ShardRouting beforeNode0ShardRouting = getShardRoutingForNodeName(nodes[0]);
+            ShardRouting beforeNode1ShardRouting = getShardRoutingForNodeName(nodes[1]);
+            ShardRouting beforeNode2ShardRouting = getShardRoutingForNodeName(nodes[2]);
+            System.out.println("Node 0 shard routing before relocation: "+beforeNode0ShardRouting);
+            System.out.println("Node 1 shard routing before relocation: "+beforeNode1ShardRouting);
+            System.out.println("Node 2 shard routing before relocation: "+beforeNode2ShardRouting);
             int fromNode = (i % 2);
             int toNode = fromNode == 0 ? 1 : 0;
             fromNode += nodeShiftBased;
@@ -408,19 +432,108 @@ public class RelocationIT extends OpenSearchIntegTestCase {
             );
             logger.info("--> DONE relocate the shard from {} to {}", fromNode, toNode);
 
+            ShardRouting afterNode0ShardRouting = getShardRoutingForNodeName(nodes[0]);
+            ShardRouting afterNode1ShardRouting = getShardRoutingForNodeName(nodes[1]);
+            ShardRouting afterNode2ShardRouting = getShardRoutingForNodeName(nodes[2]);
+
+            System.out.println("Node 0 shard routing after relocation: "+afterNode0ShardRouting);
+            System.out.println("Node 1 shard routing after relocation: "+afterNode1ShardRouting);
+            System.out.println("Node 2 shard routing after relocation: "+afterNode2ShardRouting);
+
+            waitForReplicaUpdate();
+
             logger.debug("--> verifying all searches return the same number of docs");
             long expectedCount = -1;
-            for (Client client : clients()) {
-                SearchResponse response = client.prepareSearch("test").setPreference("_local").setSize(0).get();
+            for (String node : nodes) {
+                System.out.println("currently in node : "+node);
+                SearchResponse response = client(node).prepareSearch("test").setPreference("_local").setSize(0).get();
                 assertNoFailures(response);
                 if (expectedCount < 0) {
                     expectedCount = response.getHits().getTotalHits().value;
                 } else {
                     assertEquals(expectedCount, response.getHits().getTotalHits().value);
                 }
+                System.out.println("finished in node : "+node);
             }
+            System.out.println("expected count is: "+expectedCount);
 
         }
+
+    }
+
+    private ShardRouting getShardRoutingForNodeName(String nodeName) {
+        final ClusterState state = client(internalCluster().getClusterManagerName()).admin().cluster().prepareState().get().getState();
+        for (IndexShardRoutingTable shardRoutingTable : state.routingTable().index("test")) {
+            for (ShardRouting shardRouting : shardRoutingTable.activeShards()) {
+                final String nodeId = shardRouting.currentNodeId();
+                final DiscoveryNode discoveryNode = state.nodes().resolveNode(nodeId);
+                if (discoveryNode.getName().equals(nodeName)) {
+                    return shardRouting;
+                }
+            }
+        }
+        return null;
+    }
+
+    private IndexShard getIndexShard(String node) {
+        final Index index = resolveIndex("test");
+        IndicesService indicesService = internalCluster().getInstance(IndicesService.class, node);
+        IndexService indexService = indicesService.indexServiceSafe(index);
+        indexService.numberOfShards();
+        final Optional<Integer> shardId = indexService.shardIds().stream().findFirst();
+        return indexService.getShard(shardId.get());
+    }
+
+    private List<ShardSegments[]> getShardSegments(IndicesSegmentResponse indicesSegmentResponse) {
+        return indicesSegmentResponse.getIndices()
+            .values()
+            .stream() // get list of IndexSegments
+            .flatMap(is -> is.getShards().values().stream()) // Map to shard replication group
+            .map(IndexShardSegments::getShards) // get list of segments across replication group
+            .collect(Collectors.toList());
+    }
+
+    private Map<Boolean, List<ShardSegments>> segmentsByShardType(ShardSegments[] replicationGroupSegments) {
+        return Arrays.stream(replicationGroupSegments).collect(Collectors.groupingBy(s -> s.getShardRouting().primary()));
+    }
+
+    private Map<String, Segment> getLatestSegments(ShardSegments segments) {
+        final Optional<Long> generation = segments.getSegments().stream().map(Segment::getGeneration).max(Long::compare);
+        final Long latestPrimaryGen = generation.get();
+        return segments.getSegments()
+            .stream()
+            .filter(s -> s.getGeneration() == latestPrimaryGen)
+            .collect(Collectors.toMap(Segment::getName, Function.identity()));
+    }
+
+    private void waitForReplicaUpdate() throws Exception {
+        // wait until the replica has the latest segment generation.
+        assertBusy(() -> {
+            final IndicesSegmentResponse indicesSegmentResponse = client().admin()
+                .indices()
+                .segments(new IndicesSegmentsRequest())
+                .actionGet();
+            List<ShardSegments[]> segmentsByIndex = getShardSegments(indicesSegmentResponse);
+            for (ShardSegments[] replicationGroupSegments : segmentsByIndex) {
+                final Map<Boolean, List<ShardSegments>> segmentListMap = segmentsByShardType(replicationGroupSegments);
+                final List<ShardSegments> primaryShardSegmentsList = segmentListMap.get(true);
+                final List<ShardSegments> replicaShardSegments = segmentListMap.get(false);
+                // if we don't have any segments yet, proceed.
+                final ShardSegments primaryShardSegments = primaryShardSegmentsList.stream().findFirst().get();
+                logger.info("Primary {} Segments: {}", primaryShardSegments.getShardRouting(), primaryShardSegments.getSegments());
+                if (primaryShardSegments.getSegments().isEmpty() == false) {
+                    final Map<String, Segment> latestPrimarySegments = getLatestSegments(primaryShardSegments);
+                    final Long latestPrimaryGen = latestPrimarySegments.values().stream().findFirst().map(Segment::getGeneration).get();
+                    for (ShardSegments shardSegments : replicaShardSegments) {
+                        logger.info("Replica {} Segments: {}", shardSegments.getShardRouting(), shardSegments.getSegments());
+                        final boolean isReplicaCaughtUpToPrimary = shardSegments.getSegments()
+                            .stream()
+                            .anyMatch(segment -> segment.getGeneration() == latestPrimaryGen);
+                        assertTrue(isReplicaCaughtUpToPrimary);
+                    }
+                }
+            }
+        }, 30, TimeUnit.SECONDS);
 
     }
 
