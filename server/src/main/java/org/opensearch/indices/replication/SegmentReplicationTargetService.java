@@ -120,7 +120,8 @@ public class SegmentReplicationTargetService implements IndexEventListener {
     @Override
     public void beforeIndexShardClosed(ShardId shardId, @Nullable IndexShard indexShard, Settings indexSettings) {
         if (indexShard != null) {
-            onGoingReplications.cancelForShard(shardId, "shard closed");
+            boolean isCancelled = onGoingReplications.cancelForShard(shardId, "shard closed");
+
         }
     }
 
@@ -144,6 +145,7 @@ public class SegmentReplicationTargetService implements IndexEventListener {
     public synchronized void onNewCheckpoint(final ReplicationCheckpoint receivedCheckpoint, final IndexShard replicaShard) {
         logger.trace(() -> new ParameterizedMessage("Replica received new replication checkpoint from primary [{}]", receivedCheckpoint));
         // Checks if received checkpoint is already present and ahead then it replaces old received checkpoint
+        System.out.println("checkpoint received on shard: "+replicaShard.routingEntry().allocationId());
         if (latestReceivedCheckpoint.get(replicaShard.shardId()) != null) {
             if (receivedCheckpoint.isAheadOf(latestReceivedCheckpoint.get(replicaShard.shardId()))) {
                 latestReceivedCheckpoint.replace(replicaShard.shardId(), receivedCheckpoint);
@@ -154,13 +156,13 @@ public class SegmentReplicationTargetService implements IndexEventListener {
         SegmentReplicationTarget ongoingReplicationTarget = onGoingReplications.getOngoingReplicationTarget(replicaShard.shardId());
         if (ongoingReplicationTarget != null) {
             if (ongoingReplicationTarget.getCheckpoint().getPrimaryTerm() < receivedCheckpoint.getPrimaryTerm()) {
-                logger.trace(
+                logger.info(
                     "Cancelling ongoing replication from old primary with primary term {}",
                     ongoingReplicationTarget.getCheckpoint().getPrimaryTerm()
                 );
                 onGoingReplications.cancel(ongoingReplicationTarget.getId(), "Cancelling stuck target after new primary");
             } else {
-                logger.trace(
+                logger.info(
                     () -> new ParameterizedMessage(
                         "Ignoring new replication checkpoint - shard is currently replicating to checkpoint {}",
                         replicaShard.getLatestReplicationCheckpoint()
@@ -174,10 +176,10 @@ public class SegmentReplicationTargetService implements IndexEventListener {
             startReplication(receivedCheckpoint, replicaShard, new SegmentReplicationListener() {
                 @Override
                 public void onReplicationDone(SegmentReplicationState state) {
-                    logger.trace(
+                    logger.info(
                         () -> new ParameterizedMessage(
-                            "[shardId {}] [replication id {}] Replication complete, timing data: {}",
-                            replicaShard.shardId().getId(),
+                            "[allocationId {}] [replication id {}] Replication complete, timing data: {}",
+                            replicaShard.routingEntry().allocationId(),
                             state.getReplicationId(),
                             state.getTimingData()
                         )
@@ -197,10 +199,10 @@ public class SegmentReplicationTargetService implements IndexEventListener {
 
                 @Override
                 public void onReplicationFailure(SegmentReplicationState state, OpenSearchException e, boolean sendShardFailure) {
-                    logger.trace(
+                    logger.info(
                         () -> new ParameterizedMessage(
-                            "[shardId {}] [replication id {}] Replication failed, timing data: {}",
-                            replicaShard.shardId().getId(),
+                            "[allocationId {}] [replication id {}] Replication failed, timing data: {}",
+                            replicaShard.routingEntry().allocationId(),
                             state.getReplicationId(),
                             state.getTimingData()
                         )
@@ -233,6 +235,7 @@ public class SegmentReplicationTargetService implements IndexEventListener {
     // pkg-private for integration tests
     void startReplication(final SegmentReplicationTarget target) {
         final long replicationId = onGoingReplications.start(target, recoverySettings.activityTimeout());
+        System.out.println("starting replication for: "+replicationId);
         threadPool.generic().execute(new ReplicationRunner(replicationId));
     }
 

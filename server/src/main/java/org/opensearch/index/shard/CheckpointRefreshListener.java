@@ -41,6 +41,7 @@ public class CheckpointRefreshListener implements ReferenceManager.RefreshListen
     @Override
     public void afterRefresh(boolean didRefresh) throws IOException {
         if (didRefresh && shard.state() != IndexShardState.CLOSED && shard.getReplicationTracker().isPrimaryMode()) {
+            logger.info("checkpoint is being published from: "+shard.routingEntry().allocationId());
             publisher.publish(shard);
         }
     }

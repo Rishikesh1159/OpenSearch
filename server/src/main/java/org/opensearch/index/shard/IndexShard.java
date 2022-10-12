@@ -52,6 +52,7 @@ import org.apache.lucene.util.SetOnce;
 import org.apache.lucene.util.ThreadInterruptedException;
 import org.opensearch.Assertions;
 import org.opensearch.ExceptionsHelper;
+import org.opensearch.LegacyESVersion;
 import org.opensearch.OpenSearchException;
 import org.opensearch.action.ActionListener;
 import org.opensearch.action.ActionRunnable;
@@ -66,6 +67,7 @@ import org.opensearch.cluster.routing.IndexShardRoutingTable;
 import org.opensearch.cluster.routing.RecoverySource;
 import org.opensearch.cluster.routing.RecoverySource.SnapshotRecoverySource;
 import org.opensearch.cluster.routing.ShardRouting;
+import org.opensearch.cluster.routing.ShardRoutingState;
 import org.opensearch.common.Booleans;
 import org.opensearch.common.CheckedConsumer;
 import org.opensearch.common.CheckedFunction;
@@ -547,14 +549,14 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                 && currentRouting.relocating()
                 && replicationTracker.isRelocated()
                 && (newRouting.relocating() == false || newRouting.equalsIgnoringMetadata(currentRouting) == false)) {
-                    // if the shard is not in primary mode anymore (after primary relocation) we have to fail when any changes in shard
-                    // routing occur (e.g. due to recovery failure / cancellation). The reason is that at the moment we cannot safely
-                    // reactivate primary mode without risking two active primaries.
-                    throw new IndexShardRelocatedException(
-                        shardId(),
-                        "Shard is marked as relocated, cannot safely move to state " + newRouting.state()
-                    );
-                }
+                // if the shard is not in primary mode anymore (after primary relocation) we have to fail when any changes in shard
+                // routing occur (e.g. due to recovery failure / cancellation). The reason is that at the moment we cannot safely
+                // reactivate primary mode without risking two active primaries.
+                throw new IndexShardRelocatedException(
+                    shardId(),
+                    "Shard is marked as relocated, cannot safely move to state " + newRouting.state()
+                );
+            }
             assert newRouting.active() == false || state == IndexShardState.STARTED || state == IndexShardState.CLOSED
                 : "routing is active, but local shard state isn't. routing: " + newRouting + ", local state: " + state;
             persistMetadata(path, indexSettings, newRouting, currentRouting, logger);
@@ -678,10 +680,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             this.shardRouting = newRouting;
 
             assert this.shardRouting.primary() == false || this.shardRouting.started() == false || // note that we use started and not
-                                                                                                   // active to avoid relocating shards
+                // active to avoid relocating shards
                 this.indexShardOperationPermits.isBlocked() || // if permits are blocked, we are still transitioning
                 this.replicationTracker.isPrimaryMode() : "a started primary with non-pending operation term must be in primary mode "
-                    + this.shardRouting;
+                + this.shardRouting;
             shardStateUpdated.countDown();
         }
         if (currentRouting.active() == false && newRouting.active()) {
@@ -741,6 +743,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      */
     public void relocated(final String targetAllocationId, final Consumer<ReplicationTracker.PrimaryContext> consumer)
         throws IllegalIndexShardStateException, IllegalStateException, InterruptedException {
+        this.shardRouting.state();
         assert shardRouting.primary() : "only primaries can be marked as relocated: " + shardRouting;
         try (Releasable forceRefreshes = refreshListeners.forceRefreshes()) {
             indexShardOperationPermits.blockOperations(30, TimeUnit.MINUTES, () -> {
@@ -1432,21 +1435,34 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      * @return true if checkpoint should be processed
      */
     public final boolean shouldProcessCheckpoint(ReplicationCheckpoint requestCheckpoint) {
+//        System.out.println("engine type is: "+getEngine().toString());
         if (state().equals(IndexShardState.STARTED) == false) {
-            logger.trace(() -> new ParameterizedMessage("Ignoring new replication checkpoint - shard is not started {}", state()));
+            logger.info(() -> new ParameterizedMessage("Ignoring new replication checkpoint - shard is not started {}", state()));
             return false;
         }
         if (getReplicationTracker().isPrimaryMode()) {
             logger.warn("Ignoring new replication checkpoint - shard is in primaryMode and cannot receive any checkpoints.");
             return false;
         }
-        if (this.routingEntry().primary()) {
+        this.getReplicationTracker().isRelocated();
+        if(this.routingEntry().primary()){
+            System.out.println("hey I am here");
             logger.warn("Ignoring new replication checkpoint - primary shard cannot receive any checkpoints.");
+            return false;
+        }
+        if(!(getEngine() instanceof NRTReplicationEngine)){
+            System.out.println("hey I am in Engine check");
+            System.out.println("engine is:"+getEngine().toString());
+            return false;
+        }
+        byte shardState = this.shardRouting.state().value();
+        if( ShardRoutingState.RELOCATING == ShardRoutingState.fromValue(shardState)){
+            logger.info("Relocating shard cannot receive checkpoints.");
             return false;
         }
         ReplicationCheckpoint localCheckpoint = getLatestReplicationCheckpoint();
         if (localCheckpoint.isAheadOf(requestCheckpoint)) {
-            logger.trace(
+            logger.info(
                 () -> new ParameterizedMessage(
                     "Ignoring new replication checkpoint - Shard is already on checkpoint {} that is ahead of {}",
                     localCheckpoint,
@@ -1456,7 +1472,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             return false;
         }
         if (localCheckpoint.equals(requestCheckpoint)) {
-            logger.trace(
+            logger.info(
                 () -> new ParameterizedMessage("Ignoring new replication checkpoint - Shard is already on checkpoint {}", requestCheckpoint)
             );
             return false;
@@ -1762,8 +1778,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
                     return recoveredOps;
                 };
                 innerOpenEngineAndTranslog(() -> globalCheckpoint);
+                logger.info("before recovery {}",store.getMetadata().asMap());
                 getEngine().translogManager()
                     .recoverFromTranslog(translogRecoveryRunner, getEngine().getProcessedLocalCheckpoint(), globalCheckpoint);
+                logger.info("after recovery, {} ",store.getMetadata().asMap());
                 logger.trace("shard locally recovered up to {}", getEngine().getSeqNoStats(globalCheckpoint));
             } finally {
                 synchronized (engineMutex) {
@@ -2021,14 +2039,16 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         updateRetentionLeasesOnReplica(loadRetentionLeases());
         assert recoveryState.getRecoverySource().expectEmptyRetentionLeases() == false || getRetentionLeases().leases().isEmpty()
             : "expected empty set of retention leases with recovery source ["
-                + recoveryState.getRecoverySource()
-                + "] but got "
-                + getRetentionLeases();
+            + recoveryState.getRecoverySource()
+            + "] but got "
+            + getRetentionLeases();
         synchronized (engineMutex) {
             assert currentEngineReference.get() == null : "engine is running";
             verifyNotClosed();
             // we must create a new engine under mutex (see IndexShard#snapshotStoreMetadata).
             final Engine newEngine = engineFactory.newReadWriteEngine(config);
+            logger.info("Engine Factory is: {} ",engineFactory.toString());
+            logger.info("Engine is: {} ", newEngine.toString());
             onNewEngine(newEngine);
             currentEngineReference.set(newEngine);
             // We set active because we are now writing operations to the engine; this way,
@@ -2894,11 +2914,11 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
              */
             assert state() != IndexShardState.POST_RECOVERY && state() != IndexShardState.STARTED
                 : "supposedly in-sync shard copy received a global checkpoint ["
-                    + globalCheckpoint
-                    + "] "
-                    + "that is higher than its local checkpoint ["
-                    + localCheckpoint
-                    + "]";
+                + globalCheckpoint
+                + "] "
+                + "that is higher than its local checkpoint ["
+                + localCheckpoint
+                + "]";
             return;
         }
         replicationTracker.updateGlobalCheckpointOnReplica(globalCheckpoint, reason);
@@ -2919,10 +2939,10 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             + "]";
         assert getLocalCheckpoint() == primaryContext.getCheckpointStates().get(routingEntry().allocationId().getId()).getLocalCheckpoint()
             || indexSettings().getTranslogDurability() == Translog.Durability.ASYNC : "local checkpoint ["
-                + getLocalCheckpoint()
-                + "] does not match checkpoint from primary context ["
-                + primaryContext
-                + "]";
+            + getLocalCheckpoint()
+            + "] does not match checkpoint from primary context ["
+            + primaryContext
+            + "]";
         synchronized (mutex) {
             replicationTracker.activateWithPrimaryContext(primaryContext); // make changes to primaryMode flag only under mutex
         }
