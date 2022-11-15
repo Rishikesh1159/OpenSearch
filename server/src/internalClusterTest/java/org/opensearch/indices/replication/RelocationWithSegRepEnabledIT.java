@@ -95,6 +95,11 @@ public class RelocationWithSegRepEnabledIT extends OpenSearchIntegTestCase {
             .build();
     }
 
+    @Override
+    protected boolean addMockInternalEngine() {
+        return false;
+    }
+
 
     /**
      * This Integration Relocates a primary shard to another node. Before Relocation and after relocation we index single document. We don't perform any flush
