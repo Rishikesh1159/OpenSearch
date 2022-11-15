@@ -66,6 +66,7 @@ import org.opensearch.cluster.routing.IndexShardRoutingTable;
 import org.opensearch.cluster.routing.RecoverySource;
 import org.opensearch.cluster.routing.RecoverySource.SnapshotRecoverySource;
 import org.opensearch.cluster.routing.ShardRouting;
+import org.opensearch.cluster.routing.ShardRoutingState;
 import org.opensearch.common.Booleans;
 import org.opensearch.common.CheckedConsumer;
 import org.opensearch.common.CheckedFunction;
@@ -1442,6 +1443,14 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         }
         if (this.routingEntry().primary()) {
             logger.warn("Ignoring new replication checkpoint - primary shard cannot receive any checkpoints.");
+            return false;
+        }
+        if(!(getEngine() instanceof NRTReplicationEngine)){
+            return false;
+        }
+        byte shardState = this.shardRouting.state().value();
+        if( ShardRoutingState.RELOCATING == ShardRoutingState.fromValue(shardState)){
+            logger.info("Relocating shard cannot receive checkpoints.");
             return false;
         }
         ReplicationCheckpoint localCheckpoint = getLatestReplicationCheckpoint();
