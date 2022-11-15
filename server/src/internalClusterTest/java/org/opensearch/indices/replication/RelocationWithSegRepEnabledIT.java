@@ -10,6 +10,7 @@ package org.opensearch.indices.replication;
 
 import com.carrotsearch.hppc.cursors.ObjectCursor;
 import org.apache.lucene.index.IndexFileNames;
+import org.junit.BeforeClass;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.indices.segments.IndexShardSegments;
 import org.opensearch.action.admin.indices.segments.IndicesSegmentResponse;
@@ -29,6 +30,7 @@ import org.opensearch.common.Nullable;
 import org.opensearch.common.Priority;
 import org.opensearch.common.settings.Settings;
 import org.opensearch.common.unit.TimeValue;
+import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.Index;
 import org.opensearch.index.IndexModule;
@@ -72,6 +74,12 @@ import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertAcked;
 public class RelocationWithSegRepEnabledIT extends OpenSearchIntegTestCase {
 
     private final TimeValue ACCEPTABLE_RELOCATION_TIME = new TimeValue(5, TimeUnit.MINUTES);
+
+    @BeforeClass
+    public static void assumeFeatureFlag() {
+//        assumeTrue("Segment replication Feature flag is enabled", Boolean.parseBoolean(System.getProperty(FeatureFlags.REPLICATION_TYPE)));
+        assumeTrue("Segment replication Feature flag is enabled", true);
+    }
 
     @Override
     protected Collection<Class<? extends Plugin>> nodePlugins() {
