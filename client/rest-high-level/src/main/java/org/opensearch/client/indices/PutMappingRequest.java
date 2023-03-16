@@ -38,7 +38,6 @@ import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.client.TimedRequest;
 import org.opensearch.common.bytes.BytesArray;
 import org.opensearch.common.bytes.BytesReference;
-import org.opensearch.common.xcontent.MediaType;
 import org.opensearch.common.xcontent.ToXContent;
 import org.opensearch.common.xcontent.ToXContentObject;
 import org.opensearch.common.xcontent.XContentBuilder;
@@ -53,8 +52,6 @@ import java.util.Map;
  * Put a mapping definition into one or more indices. If an index already contains mappings,
  * the new mappings will be merged with the existing one. If there are elements that cannot
  * be merged, the request will be rejected.
- *
- * @opensearch.api
  */
 public class PutMappingRequest extends TimedRequest implements IndicesRequest, ToXContentObject {
 
@@ -62,7 +59,7 @@ public class PutMappingRequest extends TimedRequest implements IndicesRequest, T
     private IndicesOptions indicesOptions = IndicesOptions.fromOptions(false, false, true, true);
 
     private BytesReference source;
-    private MediaType mediaType;
+    private XContentType xContentType;
 
     /**
      * Constructs a new put mapping request against one or more indices. If no indices
@@ -99,19 +96,9 @@ public class PutMappingRequest extends TimedRequest implements IndicesRequest, T
 
     /**
      * The {@link XContentType} of the mapping source.
-     *
-     * @deprecated use {@link #mediaType()} instead
      */
-    @Deprecated
     public XContentType xContentType() {
-        return (XContentType) mediaType;
-    }
-
-    /**
-     * The {@link XContentType} of the mapping source.
-     */
-    public MediaType mediaType() {
-        return mediaType;
+        return xContentType;
     }
 
     /**
@@ -133,24 +120,10 @@ public class PutMappingRequest extends TimedRequest implements IndicesRequest, T
      * The mapping source definition.
      *
      * Note that the definition should *not* be nested under a type name.
-     *
-     * @deprecated use {@link #source(String, MediaType)} instead
      */
-    @Deprecated
     public PutMappingRequest source(String mappingSource, XContentType xContentType) {
         this.source = new BytesArray(mappingSource);
-        this.mediaType = xContentType;
-        return this;
-    }
-
-    /**
-     * The mapping source definition.
-     *
-     * Note that the definition should *not* be nested under a type name.
-     */
-    public PutMappingRequest source(String mappingSource, MediaType mediaType) {
-        this.source = new BytesArray(mappingSource);
-        this.mediaType = mediaType;
+        this.xContentType = xContentType;
         return this;
     }
 
@@ -161,7 +134,7 @@ public class PutMappingRequest extends TimedRequest implements IndicesRequest, T
      */
     public PutMappingRequest source(XContentBuilder builder) {
         this.source = BytesReference.bytes(builder);
-        this.mediaType = builder.contentType();
+        this.xContentType = builder.contentType();
         return this;
     }
 
@@ -169,24 +142,10 @@ public class PutMappingRequest extends TimedRequest implements IndicesRequest, T
      * The mapping source definition.
      *
      * Note that the definition should *not* be nested under a type name.
-     *
-     * @deprecated use {@link #source(BytesReference, MediaType)} instead
      */
-    @Deprecated
     public PutMappingRequest source(BytesReference source, XContentType xContentType) {
         this.source = source;
-        this.mediaType = xContentType;
-        return this;
-    }
-
-    /**
-     * The mapping source definition.
-     *
-     * Note that the definition should *not* be nested under a type name.
-     */
-    public PutMappingRequest source(BytesReference source, MediaType mediaType) {
-        this.source = source;
-        this.mediaType = mediaType;
+        this.xContentType = xContentType;
         return this;
     }
 
@@ -194,7 +153,7 @@ public class PutMappingRequest extends TimedRequest implements IndicesRequest, T
     public XContentBuilder toXContent(XContentBuilder builder, ToXContent.Params params) throws IOException {
         if (source != null) {
             try (InputStream stream = source.streamInput()) {
-                builder.rawValue(stream, mediaType);
+                builder.rawValue(stream, xContentType);
             }
         } else {
             builder.startObject().endObject();
