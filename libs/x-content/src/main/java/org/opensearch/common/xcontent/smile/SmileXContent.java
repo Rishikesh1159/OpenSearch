@@ -38,7 +38,6 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.dataformat.smile.SmileFactory;
 import com.fasterxml.jackson.dataformat.smile.SmileGenerator;
 import org.opensearch.common.xcontent.DeprecationHandler;
-import org.opensearch.common.xcontent.MediaType;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContent;
 import org.opensearch.common.xcontent.XContentBuilder;
@@ -78,7 +77,7 @@ public class SmileXContent implements XContent {
     private SmileXContent() {}
 
     @Override
-    public MediaType mediaType() {
+    public XContentType type() {
         return XContentType.SMILE;
     }
 

@@ -37,7 +37,6 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.dataformat.cbor.CBORFactory;
 import org.opensearch.common.xcontent.DeprecationHandler;
-import org.opensearch.common.xcontent.MediaType;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContent;
 import org.opensearch.common.xcontent.XContentBuilder;
@@ -76,7 +75,7 @@ public class CborXContent implements XContent {
     private CborXContent() {}
 
     @Override
-    public MediaType mediaType() {
+    public XContentType type() {
         return XContentType.CBOR;
     }
 
