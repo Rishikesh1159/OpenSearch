@@ -97,7 +97,7 @@ public class FsInfo implements Iterable<FsInfo.Path>, Writeable, ToXContentFragm
             total = in.readLong();
             free = in.readLong();
             available = in.readLong();
-            if (FeatureFlags.isEnabled(FeatureFlags.SEARCHABLE_SNAPSHOT) && in.getVersion().onOrAfter(Version.V_2_7_0)) {
+            if (FeatureFlags.isEnabled(FeatureFlags.SEARCHABLE_SNAPSHOT) && in.getVersion().onOrAfter(Version.V_2_6_0)) {
                 fileCacheReserved = in.readLong();
                 fileCacheUtilized = in.readLong();
             }
@@ -111,7 +111,7 @@ public class FsInfo implements Iterable<FsInfo.Path>, Writeable, ToXContentFragm
             out.writeLong(total);
             out.writeLong(free);
             out.writeLong(available);
-            if (FeatureFlags.isEnabled(FeatureFlags.SEARCHABLE_SNAPSHOT) && out.getVersion().onOrAfter(Version.V_2_7_0)) {
+            if (FeatureFlags.isEnabled(FeatureFlags.SEARCHABLE_SNAPSHOT) && out.getVersion().onOrAfter(Version.V_2_6_0)) {
                 out.writeLong(fileCacheReserved);
                 out.writeLong(fileCacheUtilized);
             }
