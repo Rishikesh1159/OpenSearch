@@ -37,7 +37,6 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import org.opensearch.common.xcontent.DeprecationHandler;
-import org.opensearch.common.xcontent.MediaType;
 import org.opensearch.common.xcontent.NamedXContentRegistry;
 import org.opensearch.common.xcontent.XContent;
 import org.opensearch.common.xcontent.XContentBuilder;
@@ -78,7 +77,7 @@ public class JsonXContent implements XContent {
     private JsonXContent() {}
 
     @Override
-    public MediaType mediaType() {
+    public XContentType type() {
         return XContentType.JSON;
     }
 

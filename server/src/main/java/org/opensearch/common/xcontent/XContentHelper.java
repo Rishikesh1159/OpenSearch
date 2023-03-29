@@ -61,7 +61,7 @@ public class XContentHelper {
 
     /**
      * Creates a parser based on the bytes provided
-     * @deprecated use {@link #createParser(NamedXContentRegistry, DeprecationHandler, BytesReference, MediaType)}
+     * @deprecated use {@link #createParser(NamedXContentRegistry, DeprecationHandler, BytesReference, XContentType)}
      * to avoid content type auto-detection
      */
     @Deprecated
@@ -96,9 +96,9 @@ public class XContentHelper {
         NamedXContentRegistry xContentRegistry,
         DeprecationHandler deprecationHandler,
         BytesReference bytes,
-        MediaType mediaType
+        XContentType xContentType
     ) throws IOException {
-        Objects.requireNonNull(mediaType);
+        Objects.requireNonNull(xContentType);
         Compressor compressor = CompressorFactory.compressor(bytes);
         if (compressor != null) {
             InputStream compressedInput = null;
@@ -107,7 +107,7 @@ public class XContentHelper {
                 if (compressedInput.markSupported() == false) {
                     compressedInput = new BufferedInputStream(compressedInput);
                 }
-                return XContentFactory.xContent(mediaType).createParser(xContentRegistry, deprecationHandler, compressedInput);
+                return XContentFactory.xContent(xContentType).createParser(xContentRegistry, deprecationHandler, compressedInput);
             } catch (Exception e) {
                 if (compressedInput != null) compressedInput.close();
                 throw e;
@@ -115,16 +115,16 @@ public class XContentHelper {
         } else {
             if (bytes instanceof BytesArray) {
                 final BytesArray array = (BytesArray) bytes;
-                return mediaType.xContent()
+                return xContentType.xContent()
                     .createParser(xContentRegistry, deprecationHandler, array.array(), array.offset(), array.length());
             }
-            return mediaType.xContent().createParser(xContentRegistry, deprecationHandler, bytes.streamInput());
+            return xContentType.xContent().createParser(xContentRegistry, deprecationHandler, bytes.streamInput());
         }
     }
 
     /**
      * Converts the given bytes into a map that is optionally ordered.
-     * @deprecated this method relies on auto-detection of content type. Use {@link #convertToMap(BytesReference, boolean, MediaType)}
+     * @deprecated this method relies on auto-detection of content type. Use {@link #convertToMap(BytesReference, boolean, XContentType)}
      *             instead with the proper {@link XContentType}
      */
     @Deprecated
@@ -135,29 +135,11 @@ public class XContentHelper {
 
     /**
      * Converts the given bytes into a map that is optionally ordered. The provided {@link XContentType} must be non-null.
-     *
-     * @deprecated use {@link #convertToMap(BytesReference, boolean, MediaType)} instead
      */
-    @Deprecated
-    public static Tuple<XContentType, Map<String, Object>> convertToMap(BytesReference bytes, boolean ordered, XContentType xContentType) {
-        if (Objects.isNull(xContentType) == false && xContentType instanceof XContentType == false) {
-            throw new IllegalArgumentException(
-                "XContentHelper.convertToMap does not support media type [" + xContentType.getClass().getName() + "]"
-            );
-        }
-        return (Tuple<XContentType, Map<String, Object>>) convertToMap(bytes, ordered, (MediaType) xContentType);
-    }
-
-    /**
-     * Converts the given bytes into a map that is optionally ordered. The provided {@link XContentType} must be non-null.
-     */
-    public static Tuple<? extends MediaType, Map<String, Object>> convertToMap(
-        BytesReference bytes,
-        boolean ordered,
-        MediaType xContentType
-    ) throws OpenSearchParseException {
+    public static Tuple<XContentType, Map<String, Object>> convertToMap(BytesReference bytes, boolean ordered, XContentType xContentType)
+        throws OpenSearchParseException {
         try {
-            final MediaType contentType;
+            final XContentType contentType;
             InputStream input;
             Compressor compressor = CompressorFactory.compressor(bytes);
             if (compressor != null) {
@@ -261,7 +243,7 @@ public class XContentHelper {
         return convertToJson(bytes, reformatJson, prettyPrint, XContentFactory.xContentType(bytes.toBytesRef().bytes));
     }
 
-    public static String convertToJson(BytesReference bytes, boolean reformatJson, MediaType xContentType) throws IOException {
+    public static String convertToJson(BytesReference bytes, boolean reformatJson, XContentType xContentType) throws IOException {
         return convertToJson(bytes, reformatJson, false, xContentType);
     }
 
@@ -278,24 +260,10 @@ public class XContentHelper {
         return convertToJson(new BytesArray(json), true, XContentType.JSON);
     }
 
-    /**
-     * Converts the XContentType to a json string
-     *
-     * @deprecated use {@link #convertToJson(BytesReference, boolean, boolean, MediaType)} instead
-     */
-    @Deprecated
     public static String convertToJson(BytesReference bytes, boolean reformatJson, boolean prettyPrint, XContentType xContentType)
         throws IOException {
-        return convertToJson(bytes, reformatJson, prettyPrint, (MediaType) xContentType);
-    }
-
-    /**
-     * Converts the given {@link MediaType} to a json string
-     */
-    public static String convertToJson(BytesReference bytes, boolean reformatJson, boolean prettyPrint, MediaType mediaType)
-        throws IOException {
-        Objects.requireNonNull(mediaType);
-        if (mediaType == XContentType.JSON && !reformatJson) {
+        Objects.requireNonNull(xContentType);
+        if (xContentType == XContentType.JSON && !reformatJson) {
             return bytes.utf8ToString();
         }
 
@@ -303,7 +271,7 @@ public class XContentHelper {
         if (bytes instanceof BytesArray) {
             final BytesArray array = (BytesArray) bytes;
             try (
-                XContentParser parser = XContentFactory.xContent(mediaType)
+                XContentParser parser = XContentFactory.xContent(xContentType)
                     .createParser(
                         NamedXContentRegistry.EMPTY,
                         DeprecationHandler.THROW_UNSUPPORTED_OPERATION,
@@ -317,7 +285,7 @@ public class XContentHelper {
         } else {
             try (
                 InputStream stream = bytes.streamInput();
-                XContentParser parser = XContentFactory.xContent(mediaType)
+                XContentParser parser = XContentFactory.xContent(xContentType)
                     .createParser(NamedXContentRegistry.EMPTY, DeprecationHandler.THROW_UNSUPPORTED_OPERATION, stream)
             ) {
                 return toJsonString(prettyPrint, parser);
@@ -497,33 +465,10 @@ public class XContentHelper {
      * Returns the bytes that represent the XContent output of the provided {@link ToXContent} object, using the provided
      * {@link XContentType}. Wraps the output into a new anonymous object according to the value returned
      * by the {@link ToXContent#isFragment()} method returns.
-     *
-     * @deprecated use {@link #toXContent(ToXContent, MediaType, Params, boolean)} instead
      */
-    @Deprecated
     public static BytesReference toXContent(ToXContent toXContent, XContentType xContentType, Params params, boolean humanReadable)
         throws IOException {
         try (XContentBuilder builder = XContentBuilder.builder(xContentType.xContent())) {
-            builder.humanReadable(humanReadable);
-            if (toXContent.isFragment()) {
-                builder.startObject();
-            }
-            toXContent.toXContent(builder, params);
-            if (toXContent.isFragment()) {
-                builder.endObject();
-            }
-            return BytesReference.bytes(builder);
-        }
-    }
-
-    /**
-     * Returns the bytes that represent the XContent output of the provided {@link ToXContent} object, using the provided
-     * {@link XContentType}. Wraps the output into a new anonymous object according to the value returned
-     * by the {@link ToXContent#isFragment()} method returns.
-     */
-    public static BytesReference toXContent(ToXContent toXContent, MediaType mediaType, Params params, boolean humanReadable)
-        throws IOException {
-        try (XContentBuilder builder = XContentBuilder.builder(mediaType.xContent())) {
             builder.humanReadable(humanReadable);
             if (toXContent.isFragment()) {
                 builder.startObject();
