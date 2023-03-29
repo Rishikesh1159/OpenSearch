@@ -32,7 +32,7 @@
 
 package org.opensearch.search.aggregations.bucket.terms.heuristic;
 
-import org.opensearch.core.xcontent.ToXContentFragment;
+import org.opensearch.common.xcontent.ToXContentFragment;
 
 /**
  * Base builder class for significance heuristics

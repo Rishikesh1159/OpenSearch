@@ -32,7 +32,7 @@
 
 package org.opensearch.client.core;
 
-import org.opensearch.core.ParseField;
+import org.opensearch.common.ParseField;
 
 import java.util.Objects;
 

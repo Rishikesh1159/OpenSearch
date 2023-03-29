@@ -32,13 +32,12 @@
 
 package org.opensearch.index.query;
 
-import org.opensearch.core.xcontent.XContentParser;
-import org.opensearch.core.xcontent.XContent;
+import org.opensearch.common.xcontent.XContentParser;
 
 import java.io.IOException;
 
 /**
- * Defines a query parser that is able to parse {@link QueryBuilder}s from {@link XContent}.
+ * Defines a query parser that is able to parse {@link QueryBuilder}s from {@link org.opensearch.common.xcontent.XContent}.
  *
  * @opensearch.internal
  */

@@ -32,11 +32,11 @@
 
 package org.opensearch.search.aggregations.support;
 
-import org.opensearch.core.ParseField;
+import org.opensearch.common.ParseField;
 import org.opensearch.common.ParsingException;
-import org.opensearch.core.xcontent.AbstractObjectParser;
-import org.opensearch.core.xcontent.ObjectParser;
-import org.opensearch.core.xcontent.XContentParser;
+import org.opensearch.common.xcontent.AbstractObjectParser;
+import org.opensearch.common.xcontent.ObjectParser;
+import org.opensearch.common.xcontent.XContentParser;
 
 /**
  * Helper class to parse multi values sources

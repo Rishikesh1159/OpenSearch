@@ -47,12 +47,11 @@ import org.opensearch.common.bytes.BytesReference;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.common.util.CollectionUtils;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentHelper;
 import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.core.xcontent.MediaType;
-import org.opensearch.core.xcontent.ToXContentObject;
-import org.opensearch.core.xcontent.XContentBuilder;
 import org.opensearch.index.Index;
 import org.opensearch.index.mapper.MapperService;
 
@@ -322,10 +321,10 @@ public class PutMappingRequest extends AcknowledgedRequest<PutMappingRequest> im
     /**
      * The mapping source definition.
      */
-    public PutMappingRequest source(BytesReference mappingSource, MediaType mediaType) {
-        Objects.requireNonNull(mediaType);
+    public PutMappingRequest source(BytesReference mappingSource, XContentType xContentType) {
+        Objects.requireNonNull(xContentType);
         try {
-            this.source = XContentHelper.convertToJson(mappingSource, false, false, mediaType);
+            this.source = XContentHelper.convertToJson(mappingSource, false, false, xContentType);
             return this;
         } catch (IOException e) {
             throw new UncheckedIOException("failed to convert source to json", e);

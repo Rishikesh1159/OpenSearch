@@ -32,7 +32,6 @@
 
 package org.opensearch.common.xcontent;
 
-import org.opensearch.core.xcontent.ObjectPath;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.ArrayList;

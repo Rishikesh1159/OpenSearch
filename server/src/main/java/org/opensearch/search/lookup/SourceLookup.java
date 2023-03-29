@@ -42,7 +42,6 @@ import org.opensearch.common.lucene.index.SequentialStoredFieldsLeafReader;
 import org.opensearch.common.xcontent.XContentHelper;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.common.xcontent.support.XContentMapValues;
-import org.opensearch.core.xcontent.MediaType;
 import org.opensearch.index.fieldvisitor.FieldsVisitor;
 import org.opensearch.search.fetch.subphase.FetchSourceContext;
 
@@ -69,14 +68,14 @@ public class SourceLookup implements Map {
 
     private BytesReference sourceAsBytes;
     private Map<String, Object> source;
-    private MediaType sourceContentType;
+    private XContentType sourceContentType;
 
     public Map<String, Object> source() {
         return source;
     }
 
     public XContentType sourceContentType() {
-        return XContentType.fromMediaType(sourceContentType);
+        return sourceContentType;
     }
 
     public int docId() {

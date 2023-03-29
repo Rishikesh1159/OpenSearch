@@ -6,5 +6,5 @@
  * compatible open source license.
  */
 
-/** Common internal I/O classes */
+/** Internal I/O classes - todo refactor to common */
 package org.opensearch.core.internal.io;

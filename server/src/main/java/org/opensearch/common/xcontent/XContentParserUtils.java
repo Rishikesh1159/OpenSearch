@@ -35,10 +35,7 @@ package org.opensearch.common.xcontent;
 import org.opensearch.common.ParsingException;
 import org.opensearch.common.Strings;
 import org.opensearch.common.bytes.BytesArray;
-import org.opensearch.core.xcontent.NamedXContentRegistry;
-import org.opensearch.core.xcontent.XContentParser;
-import org.opensearch.core.xcontent.XContentParser.Token;
-import org.opensearch.core.xcontent.XContentLocation;
+import org.opensearch.common.xcontent.XContentParser.Token;
 
 import java.io.IOException;
 import java.util.Locale;

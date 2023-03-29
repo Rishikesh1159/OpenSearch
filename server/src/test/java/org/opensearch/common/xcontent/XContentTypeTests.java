@@ -31,7 +31,6 @@
 
 package org.opensearch.common.xcontent;
 
-import org.opensearch.core.xcontent.MediaType;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.util.Locale;
@@ -102,8 +101,7 @@ public class XContentTypeTests extends OpenSearchTestCase {
     }
 
     public void testFromRubbish() throws Exception {
-        assertThat(XContentType.fromMediaType((String) null), nullValue());
-        assertThat(XContentType.fromMediaType((MediaType) null), nullValue());
+        assertThat(XContentType.fromMediaType(null), nullValue());
         assertThat(XContentType.fromMediaType(""), nullValue());
         assertThat(XContentType.fromMediaType("text/plain"), nullValue());
         assertThat(XContentType.fromMediaType("gobbly;goop"), nullValue());

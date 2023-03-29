@@ -32,9 +32,8 @@
 
 package org.opensearch.common.xcontent.support.filtering;
 
-import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentType;
-import org.opensearch.test.OpenSearchTestCase;
 
 public class JsonXContentFilteringTests extends AbstractXContentFilteringTestCase {
 
@@ -45,10 +44,10 @@ public class JsonXContentFilteringTests extends AbstractXContentFilteringTestCas
 
     @Override
     protected void assertFilterResult(XContentBuilder expected, XContentBuilder actual) {
-        if (OpenSearchTestCase.randomBoolean()) {
-            AbstractXContentFilteringTestCase.assertXContentBuilderAsString(expected, actual);
+        if (randomBoolean()) {
+            assertXContentBuilderAsString(expected, actual);
         } else {
-            AbstractXContentFilteringTestCase.assertXContentBuilderAsBytes(expected, actual);
+            assertXContentBuilderAsBytes(expected, actual);
         }
     }
 }

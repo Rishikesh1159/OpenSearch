@@ -43,9 +43,8 @@ import org.opensearch.common.bytes.BytesReference;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.core.xcontent.MediaType;
-import org.opensearch.core.xcontent.ToXContentObject;
-import org.opensearch.core.xcontent.XContentBuilder;
+import org.opensearch.common.xcontent.ToXContentObject;
+import org.opensearch.common.xcontent.XContentBuilder;
 import org.opensearch.common.xcontent.XContentFactory;
 import org.opensearch.common.xcontent.XContentType;
 
@@ -374,11 +373,11 @@ public class CreateSnapshotRequest extends ClusterManagerNodeRequest<CreateSnaps
      * See repository documentation for more information.
      *
      * @param source repository-specific snapshot settings
-     * @param mediaType the content type of the source
+     * @param xContentType the content type of the source
      * @return this request
      */
-    public CreateSnapshotRequest settings(String source, MediaType mediaType) {
-        this.settings = Settings.builder().loadFromSource(source, mediaType).build();
+    public CreateSnapshotRequest settings(String source, XContentType xContentType) {
+        this.settings = Settings.builder().loadFromSource(source, xContentType).build();
         return this;
     }
 
