@@ -42,7 +42,6 @@ import org.opensearch.common.io.stream.StreamOutput;
 import org.opensearch.common.util.CollectionUtils;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 import static org.opensearch.action.ValidateActions.addValidationError;
 
@@ -56,7 +55,6 @@ public class OpenIndexRequest extends AcknowledgedRequest<OpenIndexRequest> impl
     private String[] indices;
     private IndicesOptions indicesOptions = IndicesOptions.fromOptions(false, true, false, true);
     private ActiveShardCount waitForActiveShards = ActiveShardCount.DEFAULT;
-    private boolean shouldStoreResult;
 
     public OpenIndexRequest(StreamInput in) throws IOException {
         super(in);
@@ -163,33 +161,11 @@ public class OpenIndexRequest extends AcknowledgedRequest<OpenIndexRequest> impl
         return waitForActiveShards(ActiveShardCount.from(waitForActiveShards));
     }
 
-    /**
-     * Should this task store its result after it has finished?
-     */
-    public void setShouldStoreResult(boolean shouldStoreResult) {
-        this.shouldStoreResult = shouldStoreResult;
-    }
-
-    @Override
-    public boolean getShouldStoreResult() {
-        return shouldStoreResult;
-    }
-
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         super.writeTo(out);
         out.writeStringArray(indices);
         indicesOptions.writeIndicesOptions(out);
         waitForActiveShards.writeTo(out);
-    }
-
-    @Override
-    public String toString() {
-        return "open indices " + Arrays.toString(indices());
-    }
-
-    @Override
-    public String getDescription() {
-        return this.toString();
     }
 }

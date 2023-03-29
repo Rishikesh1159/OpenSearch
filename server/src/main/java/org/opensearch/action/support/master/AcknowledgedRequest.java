@@ -38,7 +38,6 @@ import org.opensearch.common.unit.TimeValue;
 
 import java.io.IOException;
 
-import static org.opensearch.common.unit.TimeValue.timeValueHours;
 import static org.opensearch.common.unit.TimeValue.timeValueSeconds;
 
 /**
@@ -52,7 +51,6 @@ public abstract class AcknowledgedRequest<Request extends MasterNodeRequest<Requ
         AckedRequest {
 
     public static final TimeValue DEFAULT_ACK_TIMEOUT = timeValueSeconds(30);
-    public static final TimeValue DEFAULT_TASK_EXECUTION_TIMEOUT = timeValueHours(1);
 
     protected TimeValue timeout = DEFAULT_ACK_TIMEOUT;
 
