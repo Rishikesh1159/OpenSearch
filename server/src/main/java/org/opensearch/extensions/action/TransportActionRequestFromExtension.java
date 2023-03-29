@@ -8,10 +8,9 @@
 
 package org.opensearch.extensions.action;
 
-import org.opensearch.action.ActionRequest;
-import org.opensearch.action.ActionRequestValidationException;
 import org.opensearch.common.io.stream.StreamInput;
 import org.opensearch.common.io.stream.StreamOutput;
+import org.opensearch.transport.TransportRequest;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -21,7 +20,7 @@ import java.util.Objects;
  *
  * @opensearch.api
  */
-public class TransportActionRequestFromExtension extends ActionRequest {
+public class TransportActionRequestFromExtension extends TransportRequest {
     /**
      * action is the transport action intended to be invoked which is registered by an extension via {@link ExtensionTransportActionsHandler}.
      */
@@ -79,11 +78,6 @@ public class TransportActionRequestFromExtension extends ActionRequest {
 
     public String getUniqueId() {
         return this.uniqueId;
-    }
-
-    @Override
-    public ActionRequestValidationException validate() {
-        return null;
     }
 
     @Override

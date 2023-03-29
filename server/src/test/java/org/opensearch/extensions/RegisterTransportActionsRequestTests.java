@@ -11,7 +11,6 @@ package org.opensearch.extensions;
 import org.junit.Before;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.common.io.stream.StreamInput;
-import org.opensearch.extensions.action.RegisterTransportActionsRequest;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;

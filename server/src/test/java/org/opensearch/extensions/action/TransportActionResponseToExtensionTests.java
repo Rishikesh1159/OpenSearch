@@ -13,42 +13,31 @@ import org.opensearch.common.io.stream.BytesStreamInput;
 import org.opensearch.common.io.stream.BytesStreamOutput;
 import org.opensearch.test.OpenSearchTestCase;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-public class RemoteExtensionActionResponseTests extends OpenSearchTestCase {
-
-    public void testExtensionActionResponse() throws Exception {
+public class TransportActionResponseToExtensionTests extends OpenSearchTestCase {
+    public void testTransportActionRequestToExtension() throws IOException {
         byte[] expectedResponseBytes = "response-bytes".getBytes(StandardCharsets.UTF_8);
-        RemoteExtensionActionResponse response = new RemoteExtensionActionResponse(true, expectedResponseBytes);
+        TransportActionResponseToExtension response = new TransportActionResponseToExtension(expectedResponseBytes);
 
-        assertTrue(response.isSuccess());
         assertEquals(expectedResponseBytes, response.getResponseBytes());
 
         BytesStreamOutput out = new BytesStreamOutput();
         response.writeTo(out);
         BytesStreamInput in = new BytesStreamInput(BytesReference.toBytes(out.bytes()));
-        response = new RemoteExtensionActionResponse(in);
+        response = new TransportActionResponseToExtension(in);
 
-        assertTrue(response.isSuccess());
         assertArrayEquals(expectedResponseBytes, response.getResponseBytes());
     }
 
-    public void testSetters() {
-        String expectedResponse = "response-bytes";
-        byte[] expectedResponseBytes = expectedResponse.getBytes(StandardCharsets.UTF_8);
+    public void testSetBytes() {
+        byte[] expectedResponseBytes = "response-bytes".getBytes(StandardCharsets.UTF_8);
         byte[] expectedEmptyBytes = new byte[0];
-        RemoteExtensionActionResponse response = new RemoteExtensionActionResponse(false, expectedEmptyBytes);
+        TransportActionResponseToExtension response = new TransportActionResponseToExtension(expectedEmptyBytes);
         assertArrayEquals(expectedEmptyBytes, response.getResponseBytes());
-        assertFalse(response.isSuccess());
-
-        response.setResponseBytesAsString(expectedResponse);
-        assertArrayEquals(expectedResponseBytes, response.getResponseBytes());
 
         response.setResponseBytes(expectedResponseBytes);
         assertArrayEquals(expectedResponseBytes, response.getResponseBytes());
-        assertEquals(expectedResponse, response.getResponseBytesAsString());
-
-        response.setSuccess(true);
-        assertTrue(response.isSuccess());
     }
 }

@@ -58,7 +58,6 @@ import org.opensearch.OpenSearchException;
 import org.opensearch.OpenSearchTimeoutException;
 import org.opensearch.Version;
 import org.opensearch.action.ActionModule;
-import org.opensearch.action.ActionModule.DynamicActionRegistry;
 import org.opensearch.action.ActionType;
 import org.opensearch.action.admin.cluster.snapshots.status.TransportNodesSnapshotsStatus;
 import org.opensearch.action.search.SearchExecutionStatsCollector;
@@ -843,7 +842,7 @@ public class Node implements Closeable {
             );
             if (FeatureFlags.isEnabled(FeatureFlags.EXTENSIONS)) {
                 this.extensionsManager.initializeServicesAndRestHandler(
-                    actionModule,
+                    restController,
                     settingsModule,
                     transportService,
                     clusterService,
@@ -1113,15 +1112,8 @@ public class Node implements Closeable {
             resourcesToClose.addAll(pluginLifecycleComponents);
             resourcesToClose.add(injector.getInstance(PeerRecoverySourceService.class));
             this.pluginLifecycleComponents = Collections.unmodifiableList(pluginLifecycleComponents);
-            DynamicActionRegistry dynamicActionRegistry = actionModule.getDynamicActionRegistry();
-            dynamicActionRegistry.registerUnmodifiableActionMap(injector.getInstance(new Key<Map<ActionType, TransportAction>>() {
-            }));
-            client.initialize(
-                dynamicActionRegistry,
-                () -> clusterService.localNode().getId(),
-                transportService.getRemoteClusterService(),
-                namedWriteableRegistry
-            );
+            client.initialize(injector.getInstance(new Key<Map<ActionType, TransportAction>>() {
+            }), () -> clusterService.localNode().getId(), transportService.getRemoteClusterService(), namedWriteableRegistry);
             this.namedWriteableRegistry = namedWriteableRegistry;
 
             logger.debug("initializing HTTP handlers ...");
