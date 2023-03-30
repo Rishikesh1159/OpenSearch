@@ -751,6 +751,7 @@ public final class IndexSettings {
         nodeName = Node.NODE_NAME_SETTING.get(settings);
         this.indexMetadata = indexMetadata;
         numberOfShards = settings.getAsInt(IndexMetadata.SETTING_NUMBER_OF_SHARDS, null);
+        logger.info("Ankikala: is this system index? {} and index name is: {}", indexMetadata.isSystem(), indexMetadata.getIndex().getName());
         if (FeatureFlags.isEnabled(FeatureFlags.REPLICATION_TYPE)
             && indexMetadata.isSystem() == false
             && settings.get(IndexMetadata.SETTING_REPLICATION_TYPE) == null) {

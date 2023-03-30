@@ -65,6 +65,7 @@ public class NRTReplicationEngine extends Engine implements LifecycleAware {
 
     public NRTReplicationEngine(EngineConfig engineConfig) {
         super(engineConfig);
+        logger.info("loading NRT replication engine for {}", engineConfig.getShardId());
         store.incRef();
         NRTReplicationReaderManager readerManager = null;
         WriteOnlyTranslogManager translogManagerRef = null;
