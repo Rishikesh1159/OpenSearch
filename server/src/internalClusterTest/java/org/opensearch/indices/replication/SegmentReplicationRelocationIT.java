@@ -529,7 +529,7 @@ public class SegmentReplicationRelocationIT extends SegmentReplicationBaseIT {
         }
 
         // Verify segment replication event never happened on replica shard
-        SegmentReplicationStatsResponse segmentReplicationStatsResponse = client().admin()
+        SegmentReplicationStatsResponse segmentReplicationStatsResponse = dataNodeClient().admin()
             .indices()
             .prepareSegmentReplicationStats(INDEX_NAME)
             .execute()
