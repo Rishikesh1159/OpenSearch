@@ -11,7 +11,6 @@ package org.opensearch.indices.replication;
 import org.opensearch.action.admin.indices.replication.SegmentReplicationStatsResponse;
 import org.opensearch.cluster.metadata.IndexMetadata;
 import org.opensearch.common.settings.Settings;
-import org.opensearch.common.util.FeatureFlags;
 import org.opensearch.index.IndexModule;
 import org.opensearch.indices.SystemIndexDescriptor;
 import org.opensearch.indices.replication.common.ReplicationType;
@@ -43,11 +42,6 @@ public class SegmentReplicationClusterSettingIT extends OpenSearchIntegTestCase 
             .put(IndexMetadata.SETTING_NUMBER_OF_REPLICAS, REPLICA_COUNT)
             .put(IndexModule.INDEX_QUERY_CACHE_ENABLED_SETTING.getKey(), false)
             .build();
-    }
-
-    @Override
-    protected Settings featureFlagSettings() {
-        return Settings.builder().put(super.featureFlagSettings()).put(FeatureFlags.REPLICATION_TYPE, "true").build();
     }
 
     @Override

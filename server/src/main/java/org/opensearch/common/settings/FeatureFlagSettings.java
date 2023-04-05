@@ -33,12 +33,7 @@ public class FeatureFlagSettings extends AbstractScopedSettings {
 
     public static final Set<Setting<?>> BUILT_IN_FEATURE_FLAGS = Collections.unmodifiableSet(
         new HashSet<>(
-            Arrays.asList(
-                FeatureFlags.REPLICATION_TYPE_SETTING,
-                FeatureFlags.REMOTE_STORE_SETTING,
-                FeatureFlags.SEARCHABLE_SNAPSHOT_SETTING,
-                FeatureFlags.EXTENSIONS_SETTING
-            )
+            Arrays.asList(FeatureFlags.REMOTE_STORE_SETTING, FeatureFlags.SEARCHABLE_SNAPSHOT_SETTING, FeatureFlags.EXTENSIONS_SETTING)
         )
     );
 }
