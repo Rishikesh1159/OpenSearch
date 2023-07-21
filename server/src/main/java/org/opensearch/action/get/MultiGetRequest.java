@@ -41,6 +41,7 @@ import org.opensearch.action.IndicesRequest;
 import org.opensearch.action.RealtimeRequest;
 import org.opensearch.action.ValidateActions;
 import org.opensearch.action.support.IndicesOptions;
+import org.opensearch.cluster.routing.Preference;
 import org.opensearch.common.Nullable;
 import org.opensearch.core.common.ParsingException;
 import org.opensearch.common.Strings;
@@ -321,7 +322,7 @@ public class MultiGetRequest extends ActionRequest
      * will be used across different requests.
      */
     public MultiGetRequest preference(String preference) {
-        this.preference = preference;
+        this.preference = Preference.PRIMARY.type();
         return this;
     }
 

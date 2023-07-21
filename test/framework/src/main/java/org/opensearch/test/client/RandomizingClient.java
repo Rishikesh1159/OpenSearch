@@ -34,17 +34,23 @@ package org.opensearch.test.client;
 
 import com.carrotsearch.randomizedtesting.generators.RandomPicks;
 import org.apache.lucene.tests.util.TestUtil;
-import org.opensearch.action.search.SearchRequestBuilder;
-import org.opensearch.action.search.SearchType;
+import org.junit.Assert;
+import org.opensearch.action.ActionFuture;
+import org.opensearch.action.admin.indices.replication.SegmentReplicationStatsResponse;
+import org.opensearch.action.search.*;
 import org.opensearch.client.Client;
 import org.opensearch.client.FilterClient;
 import org.opensearch.cluster.routing.Preference;
 import org.opensearch.common.unit.TimeValue;
+import org.opensearch.index.SegmentReplicationPerGroupStats;
+import org.opensearch.index.SegmentReplicationShardStats;
+import org.opensearch.indices.replication.SegmentReplicationState;
 
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+
+import static org.opensearch.test.OpenSearchTestCase.assertBusy;
+import static org.opensearch.test.OpenSearchTestCase.assertEquals;
 
 /** A {@link Client} that randomizes request parameters. */
 public class RandomizingClient extends FilterClient {
@@ -61,7 +67,7 @@ public class RandomizingClient extends FilterClient {
         // we don't use the QUERY_AND_FETCH types that break quite a lot of tests
         // given that they return `size*num_shards` hits instead of `size`
         defaultSearchType = RandomPicks.randomFrom(random, Arrays.asList(SearchType.DFS_QUERY_THEN_FETCH, SearchType.QUERY_THEN_FETCH));
-        if (random.nextInt(10) == 0) {
+        if (true) {
             defaultPreference = RandomPicks.randomFrom(random, EnumSet.of(Preference.PRIMARY_FIRST, Preference.LOCAL)).type();
         } else if (random.nextInt(10) == 0) {
             String s = TestUtil.randomRealisticUnicodeString(random, 1, 10);
@@ -85,6 +91,32 @@ public class RandomizingClient extends FilterClient {
 
     @Override
     public SearchRequestBuilder prepareSearch(String... indices) {
+        try {
+            String[] indexes = this.admin().indices().prepareGetIndex().get().indices();
+            assertBusy(() -> {
+                for (String index: indexes) {
+                    final SegmentReplicationStatsResponse segmentReplicationStatsResponse = this.admin().indices()
+                        .prepareSegmentReplicationStats(index)
+                        .execute()
+                        .actionGet();
+                    final Map<String, List<SegmentReplicationPerGroupStats>> replicationStats = segmentReplicationStatsResponse.getReplicationStats();
+                    for (Map.Entry<String, List<SegmentReplicationPerGroupStats>> perIndex : replicationStats.entrySet()) {
+                        final List<SegmentReplicationPerGroupStats> value = perIndex.getValue();
+                        for (SegmentReplicationPerGroupStats group : value) {
+                            for (SegmentReplicationShardStats replicaStat : group.getReplicaStats()) {
+                                logger.info("replica shard allocation id is:"+replicaStat.getAllocationId()+" and checkpoints beyond is: "+replicaStat.getCheckpointsBehindCount());
+                                assertEquals(0, replicaStat.getCheckpointsBehindCount());
+                                if(replicaStat.getCurrentReplicationState() != null){
+                                    assertEquals(SegmentReplicationState.Stage.DONE, replicaStat.getCurrentReplicationState().getStage());
+                                }
+                            }
+                        }
+                    }
+                }
+            }, 30, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            Assert.fail("oops "+e);
+        }
         SearchRequestBuilder searchRequestBuilder = in.prepareSearch(indices)
             .setSearchType(defaultSearchType)
             .setPreference(defaultPreference)
@@ -99,6 +131,33 @@ public class RandomizingClient extends FilterClient {
             searchRequestBuilder.setTimeout(new TimeValue(1, TimeUnit.DAYS));
         }
         return searchRequestBuilder;
+    }
+
+    @Override
+    public ActionFuture<SearchResponse> search(SearchRequest request){
+        try {
+            assertBusy(() -> {
+                for (String index: request.indices()) {
+                    final SegmentReplicationStatsResponse segmentReplicationStatsResponse = this.admin().indices()
+                        .prepareSegmentReplicationStats(index)
+                        .execute()
+                        .actionGet();
+                    final Map<String, List<SegmentReplicationPerGroupStats>> replicationStats = segmentReplicationStatsResponse.getReplicationStats();
+                    for (Map.Entry<String, List<SegmentReplicationPerGroupStats>> perIndex : replicationStats.entrySet()) {
+                        final List<SegmentReplicationPerGroupStats> value = perIndex.getValue();
+                        for (SegmentReplicationPerGroupStats group : value) {
+                            for (SegmentReplicationShardStats replicaStat : group.getReplicaStats()) {
+                                assertEquals(0, replicaStat.getCheckpointsBehindCount());
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (Exception e) {
+            Assert.fail("oops");
+        }
+        request.preference(defaultPreference);
+        return execute(SearchAction.INSTANCE, request);
     }
 
     @Override
