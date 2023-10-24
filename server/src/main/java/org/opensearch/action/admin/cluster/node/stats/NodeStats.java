@@ -228,7 +228,7 @@ public class NodeStats extends BaseNodeResponse implements ToXContentFragment {
         } else {
             resourceUsageStats = null;
         }
-        if (in.getVersion().onOrAfter(Version.V_2_12_0)) {
+        if (in.getVersion().onOrAfter(Version.V_2_11_0)) {
             segmentReplicationRejectionStats = in.readOptionalWriteable(SegmentReplicationRejectionStats::new);
         } else {
             segmentReplicationRejectionStats = null;
@@ -500,7 +500,7 @@ public class NodeStats extends BaseNodeResponse implements ToXContentFragment {
         if (out.getVersion().onOrAfter(Version.V_2_12_0)) {
             out.writeOptionalWriteable(resourceUsageStats);
         }
-        if (out.getVersion().onOrAfter(Version.V_2_12_0)) {
+        if (out.getVersion().onOrAfter(Version.V_2_11_0)) {
             out.writeOptionalWriteable(segmentReplicationRejectionStats);
         }
         if (out.getVersion().onOrAfter(Version.V_2_12_0)) {
